@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Hashing simple interactivo (versión simplificada sin guardar JSON).
+"""Hashing
 Solicita nombre y Gmail, calcula un hash entero y muestra el resultado.
 """
 
