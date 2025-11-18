@@ -1,133 +1,154 @@
-# -*- coding: utf-8 -*-
-"""
-Demostración práctica de:
-- Funciones hash
-- Hashing abierto (encadenamiento)
-- Hashing cerrado (open addressing)
-- Manejo de colisiones
-- Comparación simple y conclusiones
-"""
+import sys
 
-
-# ===========================================================
-#   1. FUNCIÓN HASH SENCILLA
-# ===========================================================
-
-def simple_hash(key: str, size: int) -> int:
+def simple_hash(text: str, base: int = 257, mod: int = 1_000_000_007) -> int:
+    """Función de hash polinómico, típico en algoritmos como Rabin-Karp"""
     h = 0
-    p = 31
-    power = 1
-    for ch in key:
-        h += ord(ch) * power
-        power *= p
-    return h % size
+    for c in text:
+        h = (h * base + ord(c)) % mod
+    return h
 
+def collide_hash(text: str) -> int:
+    """Hash simplificado para demostrar colisiones fácilmente"""
+    if len(text) < 2:
+        return ord(text[0]) % 50
+    return (ord(text[0]) + ord(text[1])) % 50
 
-# ===========================================================
-#   2. HASHING ABIERTO (ENCADENAMIENTO)
-# ===========================================================
-
-class HashOpen:  # separate chaining
-    def __init__(self, size=7):
+class OpenHashTable:
+    """Hashing abierto (encadenamiento) para manejo de colisiones"""
+    def __init__(self, size=5):
         self.size = size
         self.table = [[] for _ in range(size)]
 
-    def insert(self, key, value):
-        idx = simple_hash(key, self.size)
-        self.table[idx].append((key, value))
+    def _hash(self, key):
+        if len(key) < 2:
+            return ord(key[0]) % self.size
+        return (ord(key[0]) + ord(key[1])) % self.size
 
-    def __str__(self):
-        return "\n".join([f"{i}: {bucket}" for i, bucket in enumerate(self.table)])
+    def insert(self, key):
+        idx = self._hash(key)
+        if self.table[idx]:
+            print(f" Colisión detectada: '{key}' entra donde ya está {self.table[idx]}")
+        self.table[idx].append(key)
 
+    def __repr__(self):
+        return "\n".join(f"{i}: {bucket}" for i, bucket in enumerate(self.table))
 
-# ===========================================================
-#   3. HASHING CERRADO (OPEN ADDRESSING – LINEAR PROBING)
-# ===========================================================
-
-class HashClosed:
-    def __init__(self, size=7):
+class ClosedHashTable:
+    """Hashing cerrado (dir. abierta, sondeo lineal) para manejo de colisiones"""
+    def __init__(self, size=5):
         self.size = size
         self.table = [None] * size
 
-    def insert(self, key, value):
-        idx = simple_hash(key, self.size)
-        start = idx
+    def _hash(self, key):
+        if len(key) < 2:
+            return ord(key[0]) % self.size
+        return (ord(key[0]) + ord(key[1])) % self.size
 
+    def insert(self, key):
+        idx = self._hash(key)
+        start = idx
+        if self.table[idx] is not None:
+            print(f"Colisión: '{key}' no puede ir en {idx} porque ya está '{self.table[idx]}'")
         while self.table[idx] is not None:
             idx = (idx + 1) % self.size
-            if idx == start:  # tabla llena
-                return False
+            if idx == start:
+                raise Exception("Tabla llena")
+        print(f"'{key}' almacenado en posición {idx}")
+        self.table[idx] = key
 
-        self.table[idx] = (key, value)
-        return True
+    def __repr__(self):
+        return "\n".join(f"{i}: {val}" for i, val in enumerate(self.table))
 
-    def __str__(self):
-        return "\n".join([f"{i}: {slot}" for i, slot in enumerate(self.table)])
+class HashDemo:
+    """Demo comparativa de funciones hash y su efecto"""
+    def __init__(self, size=10, hash_func=None):
+        self.size = size
+        self.table = [[] for _ in range(size)]
+        self.hash_func = hash_func
 
+    def insert(self, key):
+        idx = self.hash_func(key) % self.size
+        self.table[idx].append(key)
 
-# ===========================================================
-#   4. DEMOSTRACIÓN DE COLISIONES
-# ===========================================================
+    def __repr__(self):
+        return "\n".join(f"{i}: {bucket}" for i, bucket in enumerate(self.table))
 
-def demo_collisions():
-    print("\n=== DEMO: Colisiones Prácticas ===")
+def bad_hash(key: str) -> int:
+    return ord(key[0])
 
-    keys = ["Ana", "Aña", "Anb"]  # Fuerzan colisiones pequeñas
-    size = 7
-
-    open_table = HashOpen(size)
-    closed_table = HashClosed(size)
-
-    for k in keys:
-        open_table.insert(k, f"valor_{k}")
-        closed_table.insert(k, f"valor_{k}")
-
-    print("\nHashing ABIERTO (encadenamiento):")
-    print(open_table)
-
-    print("\nHashing CERRADO (linear probing):")
-    print(closed_table)
+def better_hash(key: str) -> int:
+    h = 5381
+    for c in key:
+        h = (h * 33) ^ ord(c)
+    return h
 
 
-# ===========================================================
-#   5. MINI DEMO INTERACTIVA
-# ===========================================================
+def menu():
+    while True:
+        print("\n▁▁▁▁▁▁▁▁▁ MENÚ DE HASHING ▁▁▁▁▁▁▁▁▁")
+        print("1. Concepto de hashing y función hash")
+        print("2. Demostración de colisión")
+        print("3. Hashing abierto (Open Hash)")
+        print("4. Hashing cerrado (Closed Hash/Open Addressing)")
+        print("5. Comparativa de funciones hash + tabla")
+        print("0. Salir")
 
-def demo_usuario():
-    print("\n=== DEMO INTERACTIVA HASH ===")
-    name = input("Nombre: ")
-    password = input("Contraseña: ")
+        try:
+            opc = int(input("Opción: "))
+        except ValueError:
+            print("Opción inválida.")
+            continue
 
-    key = f"{name}|{password}"
-    size = 7
-    h = simple_hash(key, size)
+        if opc == 0:
+            print("¡Saliendo!")
+            sys.exit()
+        elif opc == 1:
+            print("\n--- CONCEPTO DE HASH ---")
+            print("Ingrese nombres para ver su valor hash (0 para volver):")
+            while True:
+                name = input("  Nombre: ").strip()
+                if name == "0":
+                    break
+                raw_hash = simple_hash(name)
+                print(f"    Hash: {raw_hash}\n")
+                
+        elif opc == 2:
+            print("\n--- DEMOSTRACIÓN DE COLISIÓN ---")
+            for w in ["cama", "casa"]:
+                print(f"  Hash('{w}'): {collide_hash(w)}")
+            print("Observa que ambas palabras producen el mismo hash (colisión).")
+            
+        elif opc == 3:
+            print("\n--- HASHING ABIERTO ---")
+            ht_open = OpenHashTable()
+            for w in ["casa", "cama"]:
+                ht_open.insert(w)
+            print("\nTabla Hash:")
+            print(ht_open)
+            
+        elif opc == 4:
+            print("\n--- HASHING CERRADO ---")
+            ht_closed = ClosedHashTable()
+            for w in ["casa", "cama"]:
+                ht_closed.insert(w)
+            print("\nTabla Hash:")
+            print(ht_closed)
 
-    print(f"\nHash generado: {h}  (dentro de una tabla de tamaño {size})")
-    print("Esto determina la posición donde se almacenaría la clave.")
+        elif opc == 5:
+            print("\n--- COMPARATIVA DE FUNCIONES HASH ---")
+            words = ["cama", "casa", "canto", "sol", "sal", "silla", "mesa", "misa", "museo"]
+            ht_bad = HashDemo(hash_func=bad_hash)
+            ht_better = HashDemo(hash_func=better_hash)
+            for w in words:
+                ht_bad.insert(w)
+                ht_better.insert(w)
+            print("Hash pésimo (muchas colisiones):")
+            print(ht_bad)
+            print("\nHash mejorado (colisiones mucho menos frecuentes):")
+            print(ht_better)
 
-
-# ===========================================================
-#   6. CONCLUSIONES PRÁCTICAS (IMPRIMIBLES)
-# ===========================================================
-
-def conclusiones():
-    print("\n=== CONCLUSIONES PRÁCTICAS ===")
-    print("- Hash abierto guarda colisiones dentro de listas.")
-    print("- Hash cerrado busca la siguiente casilla libre.")
-    print("- Una buena función hash reduce colisiones.")
-    print("- Complejidad promedio de ambas: O(1).")
-    print("- Peor caso: muchas colisiones → O(n).")
-
-
-# ===========================================================
-#   MAIN
-# ===========================================================
-
-def main():
-    demo_collisions()
-    demo_usuario()
-    conclusiones()
-
+        else:
+            print("Opción inválida.")
 
 if __name__ == "__main__":
-    main()
+    menu()
